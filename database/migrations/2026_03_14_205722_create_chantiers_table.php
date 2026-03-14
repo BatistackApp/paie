@@ -11,7 +11,7 @@ return new class extends Migration {
             $table->id();
             $table->string('name');
             $table->string('adresse');
-            $table->decimal('distance_km');
+            $table->decimal('distance_km')->default(0);
             $table->boolean('is_active')->default(true);
             $table->timestamps();
         });
