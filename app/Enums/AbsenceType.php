@@ -14,6 +14,7 @@ enum AbsenceType: string implements HasLabel
     case REPOS_COMPENSATEUR = 'repos_compensateur';
     case SANS_SOLDE = 'sans_solde';
     case INJUSTIFIE = 'injustifie';
+    case INTEMPERIE = 'intemperie';
 
     public function getLabel(): string|Htmlable|null
     {
@@ -25,6 +26,7 @@ enum AbsenceType: string implements HasLabel
             self::REPOS_COMPENSATEUR => 'Repos compensateur',
             self::SANS_SOLDE => 'Sans solde',
             self::INJUSTIFIE => 'Injustifié',
+            self::INTEMPERIE => 'Intempérie',
         };
     }
 }
