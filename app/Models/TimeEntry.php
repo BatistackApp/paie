@@ -52,4 +52,20 @@ class TimeEntry extends Model
             'validated_at' => 'datetime',
         ];
     }
+
+    public function validate(): void
+    {
+        $this->update([
+            'is_validated' => true,
+            'validated_at' => now(),
+        ]);
+    }
+
+    public function unvalidate(): void
+    {
+        $this->update([
+            'is_validated' => false,
+            'validated_at' => null,
+        ]);
+    }
 }

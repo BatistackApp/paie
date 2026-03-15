@@ -2,10 +2,11 @@
 
 namespace Database\Seeders;
 
-use App\Models\User;
-// use Illuminate\Database\Console\Seeds\WithoutModelEvents;
+use App\Models\Chantier;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Artisan;
+
+// use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 
 class DatabaseSeeder extends Seeder
 {
@@ -18,6 +19,13 @@ class DatabaseSeeder extends Seeder
             '--name' => 'admin',
             '--email' => 'admin@admin.com',
             '--password' => 'admin',
+        ]);
+
+        Chantier::create([
+            'name' => 'Atelier',
+            'adresse' => config('services.google.depot_address'),
+            'distance_km' => 0,
+            'is_active' => true,
         ]);
     }
 }

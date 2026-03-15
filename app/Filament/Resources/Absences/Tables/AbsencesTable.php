@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Absences\Tables;
 
+use App\Models\User;
 use Filafly\Icons\Phosphor\Enums\Phosphor;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\CreateAction;
@@ -53,7 +54,7 @@ class AbsencesTable
             ->filters([
                 SelectFilter::make('user.name')
                     ->label('Salarié')
-                    ->relationship('user', 'name'),
+                    ->options(fn () => User::where('is_salarie', true)->pluck('name', 'id')),
 
                 TernaryFilter::make('is_validated')
                     ->label('Valider'),

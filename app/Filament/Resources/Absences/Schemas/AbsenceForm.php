@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Absences\Schemas;
 
 use App\Enums\AbsenceType;
+use App\Models\User;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
@@ -23,7 +24,7 @@ class AbsenceForm
                         Grid::make()
                             ->schema([
                                 Select::make('user_id')
-                                    ->relationship('user', 'name')
+                                    ->options(fn () => User::where('is_salarie', true)->pluck('name', 'id'))
                                     ->searchable()
                                     ->preload()
                                     ->required(),
