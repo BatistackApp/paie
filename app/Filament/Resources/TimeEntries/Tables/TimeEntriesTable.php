@@ -5,6 +5,7 @@ namespace App\Filament\Resources\TimeEntries\Tables;
 use App\Models\TimeEntry;
 use App\Models\User;
 use App\Service\CcnCalculatorService;
+use App\Service\PdfService;
 use Filafly\Icons\Phosphor\Enums\Phosphor;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
@@ -16,6 +17,7 @@ use Filament\Actions\ViewAction;
 use Filament\Forms\Components\DatePicker;
 use Filament\Tables\Columns\Summarizers\Summarizer;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Contracts\HasTable;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
@@ -91,6 +93,25 @@ class TimeEntriesTable
                         ->when($data['from'], fn ($q) => $q->whereDate('entry_date', '>=', $data['from']))
                         ->when($data['until'], fn ($q) => $q->whereDate('entry_date', '<=', $data['until']))),
 
+            ])
+            ->headerActions([
+                Action::make('print_pdf')
+                    ->label('Imprimer le relevé')
+                    ->icon('heroicon-o-printer')
+                    ->color('info')
+                    ->action(function (HasTable $livewire) {
+                        $entries = $livewire->getFilteredTableQuery()->with(['user', 'chantier'])->get();
+
+                        $pdfContent = app(PdfService::class)->generateFromView('pdf.relever_heure', [
+                            'entries' => $entries,
+                            'title' => 'Relevé d\'heures de travail',
+                        ]);
+
+                        return response()->streamDownload(
+                            fn () => print ($pdfContent),
+                            'releve_heures_'.now()->format('Y-m-d').'.pdf'
+                        );
+                    }),
             ])
             ->recordActions([
                 ActionGroup::make([

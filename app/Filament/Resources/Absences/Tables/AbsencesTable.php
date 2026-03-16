@@ -3,7 +3,9 @@
 namespace App\Filament\Resources\Absences\Tables;
 
 use App\Models\User;
+use App\Service\PdfService;
 use Filafly\Icons\Phosphor\Enums\Phosphor;
+use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\CreateAction;
 use Filament\Actions\DeleteBulkAction;
@@ -12,6 +14,7 @@ use Filament\Actions\ViewAction;
 use Filament\Forms\Components\DatePicker;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Contracts\HasTable;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TernaryFilter;
@@ -71,6 +74,26 @@ class AbsencesTable
                     ->query(fn (Builder $query, array $data) => $query
                         ->when($data['start_at'], fn ($q) => $q->whereDate('start_date', '>=', $data['start_at']))
                         ->when($data['end_at'], fn ($q) => $q->whereDate('end_date', '<=', $data['end_at']))),
+            ])
+            ->headerActions([
+                // Action d'impression PDF pour les absences avec correction HasTable
+                Action::make('print_absences')
+                    ->label('Imprimer les absences')
+                    ->icon('heroicon-o-printer')
+                    ->color('danger')
+                    ->action(function (HasTable $livewire) {
+                        $absences = $livewire->getFilteredTableQuery()->with('user')->get();
+
+                        $pdfContent = app(PdfService::class)->generateFromView('pdf.relever_absence', [
+                            'absences' => $absences,
+                            'title' => 'Récapitulatif des absences'
+                        ]);
+
+                        return response()->streamDownload(
+                            fn () => print($pdfContent),
+                            'releve_absences_' . now()->format('Y-m-d') . '.pdf'
+                        );
+                    }),
             ])
             ->recordActions([
                 ViewAction::make(),
