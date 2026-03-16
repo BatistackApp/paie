@@ -22,26 +22,32 @@ class UserInfolist
                     ->description(fn () => 'Analyse basée sur un contrat de '.auth()->user()->weekly_contract_hours.'h/semaine')
                     ->columnSpanFull()
                     ->schema([
-                        Grid::make(5)
+                        Grid::make(3)
                             ->schema([
                                 TextEntry::make('work_h')
                                     ->label('Travail Effectif')
-                                    ->state(fn (User $record) => $statsService->getStatsForUser($record, now())['work_hours'] . ' h')
+                                    ->state(fn (User $record) => $statsService->getStatsForUser($record, now())['work_hours'].' h')
                                     ->badge()->color('success'),
 
                                 TextEntry::make('extra_25')
                                     ->label('Heures Supp. 25%')
-                                    ->state(fn (User $record) => $statsService->getStatsForUser($record, now())['extra_25'] . ' h')
+                                    ->state(fn (User $record) => $statsService->getStatsForUser($record, now())['extra_25'].' h')
                                     ->badge()->color('warning'),
 
                                 TextEntry::make('extra_50')
                                     ->label('Heures Supp. 50%')
-                                    ->state(fn (User $record) => $statsService->getStatsForUser($record, now())['extra_50'] . ' h')
+                                    ->state(fn (User $record) => $statsService->getStatsForUser($record, now())['extra_50'].' h')
                                     ->badge()->color('danger'),
+
+                                TextEntry::make('rc_hours')
+                                    ->label('Repos Comp. Pris')
+                                    ->state(fn (User $record) => $statsService->getStatsForUser($record, now())['rc_hours_deducted'].' h')
+                                    ->badge()->color('primary')
+                                    ->hint('Heures déduites des HS'),
 
                                 TextEntry::make('travel_h')
                                     ->label('Trajets (Taux Normal)')
-                                    ->state(fn (User $record) => $statsService->getStatsForUser($record, now())['travel_hours'] . ' h')
+                                    ->state(fn (User $record) => $statsService->getStatsForUser($record, now())['travel_hours'].' h')
                                     ->badge()->color('info'),
 
                                 TextEntry::make('gd_days')
@@ -60,17 +66,17 @@ class UserInfolist
                                 TextEntry::make('total_work')
                                     ->label('Travail Total Cumulé')
                                     // Utilisation de l'appel sans paramètre de mois pour le total
-                                    ->state(fn (User $record) => $statsService->getStatsForUser($record)['total_work'] . ' h')
+                                    ->state(fn (User $record) => $statsService->getStatsForUser($record)['total_work'].' h')
                                     ->badge()->color('gray'),
 
                                 TextEntry::make('total_extra')
                                     ->label('Total HS (25%) cumulées')
-                                    ->state(fn (User $record) => $statsService->getStatsForUser($record)['total_extra_25'] . ' h')
+                                    ->state(fn (User $record) => $statsService->getStatsForUser($record)['total_extra_25'].' h')
                                     ->badge()->color('gray'),
 
                                 TextEntry::make('contract_base')
                                     ->label('Base Contrat')
-                                    ->state(fn (User $record) => $record->weekly_contract_hours . ' h / semaine')
+                                    ->state(fn (User $record) => $record->weekly_contract_hours.' h / semaine')
                                     ->icon('heroicon-m-document-text'),
                             ]),
                     ]),

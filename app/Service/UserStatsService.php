@@ -2,6 +2,7 @@
 
 namespace App\Service;
 
+use App\Enums\AbsenceType;
 use App\Models\User;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Collection;
@@ -12,7 +13,8 @@ class UserStatsService
 
     public function __construct(
         protected CcnCalculatorService $calculator,
-        protected OvertimeCalculatorService $overtimeCalculator
+        protected OvertimeCalculatorService $overtimeCalculator,
+        protected AbsenceService $absenceService,
     ) {}
 
     /**
@@ -26,7 +28,7 @@ class UserStatsService
             return $this->cache[$cacheKey];
         }
 
-        // On charge les données calculées (work_duration et travel_duration sont déjà en base)
+        // --- OPTIMISATION SQL ---
         $allEntries = $user->timeEntries()
             ->select(['id', 'user_id', 'chantier_id', 'entry_date', 'work_duration', 'travel_duration'])
             ->with('chantier:id,distance_km')
@@ -35,25 +37,48 @@ class UserStatsService
         $now = now();
         $targetMonth = $month ?? $now;
         $contract = (float) $user->weekly_contract_hours;
+        $hoursPerDay = $contract / 5; // Estimation du volume horaire d'une journée d'absence
 
-        // --- Stats du mois (Filtrage simple en mémoire) ---
+        // --- Stats du mois ---
         $monthEntries = $allEntries->filter(fn ($e) => $e->entry_date->month === $targetMonth->month &&
             $e->entry_date->year === $targetMonth->year
         );
 
-        // --- Calcul des HS du mois (Basé sur work_duration pré-calculé) ---
+        // --- Gestion du Repos Compensateur (RC) ---
+        // On récupère les heures de repos compensateur prises sur le mois
+        $rcHoursTaken = $user->absences()
+            ->where('absence_type', AbsenceType::REPOS_COMPENSATEUR)
+            ->where(function ($query) use ($targetMonth) {
+                $query->whereMonth('start_date', $targetMonth->month)
+                    ->whereYear('start_date', $targetMonth->year);
+            })
+            ->get()
+            ->sum(function ($absence) use ($hoursPerDay) {
+                return $this->absenceService->calculateAbsenceDays($absence) * $hoursPerDay;
+            });
+
+        // --- Calcul des HS brutes du mois ---
         $weeklyGroups = $monthEntries->groupBy(fn ($e) => $e->entry_date->format('Y-W'));
-        $extra25 = 0;
-        $extra50 = 0;
+        $rawExtra25 = 0;
+        $rawExtra50 = 0;
 
         foreach ($weeklyGroups as $weekEntries) {
             $totalWeek = $weekEntries->sum('work_duration');
             $over = max(0, $totalWeek - $contract);
-            $extra25 += min($over, 8.0);
-            $extra50 += max(0, $over - 8.0);
+            $rawExtra25 += min($over, 8.0);
+            $rawExtra50 += max(0, $over - 8.0);
         }
 
-        // --- Cumuls historiques (Sommes SQL directes sur la collection) ---
+        // --- Application de la déduction RC ---
+        // On déduit en priorité des heures à 50% puis des 25%
+        $remainingRC = $rcHoursTaken;
+
+        $netExtra50 = max(0, $rawExtra50 - $remainingRC);
+        $remainingRC = max(0, $remainingRC - $rawExtra50);
+
+        $netExtra25 = max(0, $rawExtra25 - $remainingRC);
+
+        // --- Cumuls historiques ---
         $totalWork = $allEntries->sum('work_duration');
 
         $totalExtra25 = 0;
@@ -68,8 +93,9 @@ class UserStatsService
             'work_hours' => round($monthEntries->sum('work_duration'), 2),
             'travel_hours' => round($monthEntries->sum('travel_duration'), 2),
             'gd_count' => $monthEntries->filter(fn ($e) => ($e->chantier->distance_km ?? 0) > 50)->count(),
-            'extra_25' => round($extra25, 2),
-            'extra_50' => round($extra50, 2),
+            'rc_hours_deducted' => round($rcHoursTaken, 2),
+            'extra_25' => round($netExtra25, 2),
+            'extra_50' => round($netExtra50, 2),
             'total_work' => round($totalWork, 2),
             'total_extra_25' => round($totalExtra25, 2),
         ];
