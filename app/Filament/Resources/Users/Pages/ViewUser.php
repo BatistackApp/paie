@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Users\Pages;
 
 use App\Enums\AbsenceType;
+use App\Enums\AdvanceType;
 use App\Filament\Resources\Users\UserResource;
 use App\Models\Chantier;
 use App\Models\User;
@@ -165,6 +166,59 @@ class ViewUser extends ViewRecord
                     ->action(function (User $record, array $data): void {
                         try {
                             $record->timeEntries()->create($data);
+                        } catch (\Exception $exception) {
+                            Notification::make()
+                                ->danger()
+                                ->title('Une erreur est survenue')
+                                ->body($exception->getMessage())
+                                ->send();
+                        }
+                    }),
+
+                Action::make('create_advance')
+                    ->icon(Phosphor::Bank)
+                    ->label('Ajouter un acompte')
+                    ->modalWidth(Width::FitContent)
+                    ->modalSubmitActionLabel('Ajouter un acompte')
+                    ->schema([
+                        Section::make('Détail de l\'acompte')
+                            ->columnSpanFull()
+                            ->schema([
+                                Grid::make(2)
+                                    ->schema([
+                                        Select::make('user_id')
+                                            ->label('Salarié')
+                                            ->options(fn () => User::where('is_salarie', true)->pluck('name', 'id'))
+                                            ->searchable()
+                                            ->preload()
+                                            ->default(fn (User $record) => $record->id)
+                                            ->required(),
+
+                                        TextInput::make('amount')
+                                            ->label('Montant')
+                                            ->numeric()
+                                            ->prefix('€')
+                                            ->required(),
+
+                                        TextInput::make('date')
+                                            ->label('Date')
+                                            ->default(now())
+                                            ->required(),
+
+                                        Select::make('type')
+                                            ->label('Type d\'acompte')
+                                            ->options(AdvanceType::class)
+                                            ->required(),
+                                    ]),
+
+                                Textarea::make('reason')
+                                    ->label('Motif / Commentaire')
+                                    ->columnSpanFull(),
+                            ]),
+                    ])
+                    ->action(function (User $record, array $data): void {
+                        try {
+                            $record->advances()->create($data);
                         } catch (\Exception $exception) {
                             Notification::make()
                                 ->danger()

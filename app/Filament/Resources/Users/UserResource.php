@@ -7,6 +7,7 @@ use App\Filament\Resources\Users\Pages\EditUser;
 use App\Filament\Resources\Users\Pages\ListUsers;
 use App\Filament\Resources\Users\Pages\ViewUser;
 use App\Filament\Resources\Users\RelationManagers\AbsencesRelationManager;
+use App\Filament\Resources\Users\RelationManagers\AdvancesRelationManager;
 use App\Filament\Resources\Users\RelationManagers\TimeEntriesRelationManager;
 use App\Filament\Resources\Users\Schemas\UserForm;
 use App\Filament\Resources\Users\Schemas\UserInfolist;
@@ -51,6 +52,7 @@ class UserResource extends Resource
         return [
             TimeEntriesRelationManager::class,
             AbsencesRelationManager::class,
+            AdvancesRelationManager::class,
         ];
     }
 
