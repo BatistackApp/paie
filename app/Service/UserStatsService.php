@@ -9,7 +9,11 @@ use Illuminate\Database\Eloquent\Collection;
 
 class UserStatsService
 {
-    protected array $cache = [];
+    /**
+     * Cache statique pour éviter de recalculer les stats d'un même utilisateur
+     * plusieurs fois durant le cycle de vie d'une seule requête.
+     */
+    protected static array $requestCache = [];
 
     public function __construct(
         protected CcnCalculatorService $calculator,
@@ -22,106 +26,64 @@ class UserStatsService
      */
     public function getStatsForUser(User $user, ?CarbonInterface $month = null): array
     {
-        $cacheKey = "user_{$user->id}_".($month ? $month->format('Y-m') : 'total');
+        $targetMonth = $month ?? now();
+        $cacheKey = "user_{$user->id}_{$targetMonth->format('Y-m')}";
 
-        if (isset($this->cache[$cacheKey])) {
-            return $this->cache[$cacheKey];
+        if (isset(self::$requestCache[$cacheKey])) {
+            return self::$requestCache[$cacheKey];
         }
 
-        // --- OPTIMISATION SQL ---
+        // --- CHARGEMENT UNIQUE ET CIBLÉ ---
         $allEntries = $user->timeEntries()
             ->select(['id', 'user_id', 'chantier_id', 'entry_date', 'work_duration', 'travel_duration'])
             ->with('chantier:id,distance_km')
             ->get();
-        $allAbsences = $user->absences()
-            ->where('is_validated', true)
-            ->get();
 
-        $now = now();
-        $targetMonth = $month ?? $now;
-        $contract = (float) $user->weekly_contract_hours;
-        $hoursPerDay = $contract / 5; // Estimation du volume horaire d'une journée d'absence
+        $allAbsences = $user->absences()->where('is_validated', true)->get();
 
-        // --- LOGIQUE CONGÉS PAYÉS (CP) ---
-        // On utilise hired_at, sinon created_at par défaut
+        $contract = (float) ($user->weekly_contract_hours ?? 35.0);
+        $year = $targetMonth->year;
+
+        // --- STATS DU MOIS CIBLE ---
+        $monthEntries = $allEntries->filter(fn($e) =>
+            $e->entry_date->month === $targetMonth->month && $e->entry_date->year === $year
+        );
+
+        // Heures Supplémentaires Mensuelles
+        $monthlyHS = $monthEntries->groupBy(fn($e) => $e->entry_date->format('W'))
+            ->map(function(Collection $week) use ($contract) {
+                $over = max(0, $week->sum('work_duration') - $contract);
+                return ['h25' => min($over, 8), 'h50' => max(0, $over - 8)];
+            });
+
+        // --- STATS RH / CUMULS ---
+        // Contingent HS Annuel
+        $annualOvertimeHours = $allEntries
+            ->filter(fn($e) => $e->entry_date->year === $year)
+            ->groupBy(fn($e) => $e->entry_date->format('W'))
+            ->map(fn(Collection $week) => max(0, $week->sum('work_duration') - $contract))
+            ->sum();
+
+        // Congés Payés
         $referenceDate = $user->hired_at ?? $user->created_at;
-
-        // Calcul du nombre de mois entiers depuis l'embauche
-        $monthsWorked = $referenceDate->diffInMonths($now);
-
-        // Dans le BTP, on acquiert souvent 2.5 jours par mois de travail effectif
+        $monthsWorked = max(0, $referenceDate->diffInMonths(now()));
         $cpAcquired = round($monthsWorked * 2.5, 2);
-
-        // Calcul du consommé (Absences de type CP validées)
         $cpTaken = $allAbsences->where('absence_type', AbsenceType::CONGE_PAYE)
             ->sum(fn($a) => $this->absenceService->calculateAbsenceDays($a));
 
-        $cpBalance = $cpAcquired - $cpTaken;
+        return self::$requestCache[$cacheKey] = [
+            // Stats du Mois
+            'month_work' => round($monthEntries->sum('work_duration'), 2),
+            'month_travel' => round($monthEntries->sum('travel_duration'), 2),
+            'month_extra_25' => round($monthlyHS->sum('h25'), 2),
+            'month_extra_50' => round($monthlyHS->sum('h50'), 2),
+            'month_gd_count' => $monthEntries->filter(fn($e) => ($e->chantier->distance_km ?? 0) > 50)->count(),
 
-        $monthEntries = $allEntries->filter(fn($e) =>
-            $e->entry_date->month === $targetMonth->month && $e->entry_date->year === $targetMonth->year
-        );
-
-        // --- Gestion du Repos Compensateur (RC) ---
-        // On récupère les heures de repos compensateur prises sur le mois
-        $rcHoursTaken = $user->absences()
-            ->where('absence_type', AbsenceType::REPOS_COMPENSATEUR)
-            ->where(function ($query) use ($targetMonth) {
-                $query->whereMonth('start_date', $targetMonth->month)
-                    ->whereYear('start_date', $targetMonth->year);
-            })
-            ->get()
-            ->sum(function ($absence) use ($hoursPerDay) {
-                return $this->absenceService->calculateAbsenceDays($absence) * $hoursPerDay;
-            });
-
-        // --- Calcul des HS brutes du mois ---
-        $weeklyGroups = $monthEntries->groupBy(fn ($e) => $e->entry_date->format('Y-W'));
-        $rawExtra25 = 0;
-        $rawExtra50 = 0;
-
-        foreach ($weeklyGroups as $weekEntries) {
-            $totalWeek = $weekEntries->sum('work_duration');
-            $over = max(0, $totalWeek - $contract);
-            $rawExtra25 += min($over, 8.0);
-            $rawExtra50 += max(0, $over - 8.0);
-        }
-
-        // --- Application de la déduction RC ---
-        // On déduit en priorité des heures à 50% puis des 25%
-        $remainingRC = $rcHoursTaken;
-
-        $netExtra50 = max(0, $rawExtra50 - $remainingRC);
-        $remainingRC = max(0, $remainingRC - $rawExtra50);
-
-        $netExtra25 = max(0, $rawExtra25 - $remainingRC);
-
-        // --- Cumuls historiques ---
-        $totalWork = $allEntries->sum('work_duration');
-
-        $totalExtra25 = 0;
-        if (! $month) {
-            $totalExtra25 = $allEntries->groupBy(fn ($e) => $e->entry_date->format('Y-W'))
-                ->map(function (Collection $week) use ($contract) {
-                    return min(max(0, $week->sum('work_duration') - $contract), 8.0);
-                })->sum();
-        }
-
-        $result = [
-            'work_hours' => round($monthEntries->sum('work_duration'), 2),
-            'travel_hours' => round($monthEntries->sum('travel_duration'), 2),
-            'gd_count' => $monthEntries->filter(fn ($e) => ($e->chantier->distance_km ?? 0) > 50)->count(),
-            'rc_hours_deducted' => round($rcHoursTaken, 2),
-            'extra_25' => round($netExtra25, 2),
-            'extra_50' => round($netExtra50, 2),
-            'total_work' => round($totalWork, 2),
-            'total_extra_25' => round($totalExtra25, 2),
-            'cp_acquired' => $cpAcquired,
-            'cp_taken' => $cpTaken,
-            'cp_balance' => $cpBalance,
-            'hired_at' => $user->hired_at ? $user->hired_at->format('d/m/Y') : 'Non renseignée',
+            // Stats Annuelles / Globales
+            'cp_balance' => round(($user->cp_carry_over ?? 0) + $cpAcquired - $cpTaken, 2),
+            'annual_overtime' => round($annualOvertimeHours, 2),
+            'total_gd_count' => $allEntries->filter(fn($e) => ($e->chantier->distance_km ?? 0) > 50)->count(),
+            'contingent_percent' => min(100, round(($annualOvertimeHours / 220) * 100, 1)),
         ];
-
-        return $this->cache[$cacheKey] = $result;
     }
 }

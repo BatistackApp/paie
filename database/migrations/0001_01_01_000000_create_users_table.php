@@ -20,6 +20,7 @@ return new class extends Migration
             $table->boolean('is_salarie')->default(false);
             $table->decimal('weekly_contract_hours', 5, 2)->default(35.00);
             $table->date('hired_at')->nullable();
+            $table->decimal('cp_carry_over', 8, 2)->default(0);
             $table->rememberToken();
             $table->timestamps();
         });

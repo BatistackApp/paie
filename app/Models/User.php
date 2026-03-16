@@ -32,6 +32,7 @@ class User extends Authenticatable
         'email_verified_at',
         'weekly_contract_hours',
         'hired_at',
+        'cp_carry_over',
     ];
 
     /**
@@ -56,6 +57,8 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'hired_at' => 'date',
+            'cp_carry_over' => 'decimal:2',
         ];
     }
 

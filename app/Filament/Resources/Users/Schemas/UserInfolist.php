@@ -18,118 +18,90 @@ class UserInfolist
 
         return $schema
             ->components([
-                Section::make('Informations de bord')
-                    ->description(fn () => 'Analyse basée sur un contrat de '.auth()->user()->weekly_contract_hours.'h/semaine')
-                    ->columnSpanFull()
+                // Utilisation d'un cache local pour cette méthode de configuration
+                Section::make('Indicateurs Annuels & RH')
+                    ->description(fn (User $record) => "Suivi des compteurs globaux au " . now()->format('d/m/Y'))
+                    ->icon(Phosphor::AddressBook)
                     ->schema([
                         Grid::make(3)
                             ->schema([
-                                TextEntry::make('work_h')
-                                    ->label('Travail Effectif')
-                                    ->state(fn (User $record) => $statsService->getStatsForUser($record, now())['work_hours'].' h')
-                                    ->badge()->color('success'),
+                                TextEntry::make('cp_balance')
+                                    ->label('Solde Congés Payés')
+                                    ->state(fn (User $record) => app(UserStatsService::class)->getStatsForUser($record)['cp_balance'] . ' j')
+                                    ->color('success')
+                                    ->weight('bold'),
 
-                                TextEntry::make('extra_25')
-                                    ->label('Heures Supp. 25%')
-                                    ->state(fn (User $record) => $statsService->getStatsForUser($record, now())['extra_25'].' h')
-                                    ->badge()->color('warning'),
+                                TextEntry::make('annual_ot')
+                                    ->label('Contingent HS (Annuel)')
+                                    ->state(fn (User $record) => app(UserStatsService::class)->getStatsForUser($record)['annual_overtime'] . ' / 220 h')
+                                    ->color(fn($state, User $record) => app(UserStatsService::class)->getStatsForUser($record)['contingent_percent'] > 85 ? 'danger' : 'primary')
+                                    ->weight('bold'),
 
-                                TextEntry::make('extra_50')
-                                    ->label('Heures Supp. 50%')
-                                    ->state(fn (User $record) => $statsService->getStatsForUser($record, now())['extra_50'].' h')
-                                    ->badge()->color('danger'),
-
-                                TextEntry::make('rc_hours')
-                                    ->label('Repos Comp. Pris')
-                                    ->state(fn (User $record) => $statsService->getStatsForUser($record, now())['rc_hours_deducted'].' h')
-                                    ->badge()->color('primary')
-                                    ->hint('Heures déduites des HS'),
-
-                                TextEntry::make('travel_h')
-                                    ->label('Trajets (Taux Normal)')
-                                    ->state(fn (User $record) => $statsService->getStatsForUser($record, now())['travel_hours'].' h')
-                                    ->badge()->color('info'),
-
-                                TextEntry::make('gd_days')
-                                    ->label('Grands Déplacements')
-                                    ->state(fn (User $record) => $statsService->getStatsForUser($record, now())['gd_count'])
-                                    ->badge()->color('gray'),
+                                TextEntry::make('total_gd')
+                                    ->label('Total Grands Dépl. (Année)')
+                                    ->state(fn (User $record) => app(UserStatsService::class)->getStatsForUser($record)['total_gd_count'] . ' j')
+                                    ->icon(Phosphor::Truck)
+                                    ->color('gray'),
                             ]),
-                    ]),
+                    ])->compact(),
 
-                Grid::make(2)
-                    ->columnSpanFull()
+                Section::make('Analyse du Mois en Cours')
+                    ->description(fn () => "Détail de l'activité pour " . now()->translatedFormat('F Y'))
+                    ->icon(Phosphor::Calendar)
                     ->schema([
-                        Section::make('Cumuls & Historique')
-                            ->collapsed()
+                        Grid::make(3)
                             ->schema([
-                                Grid::make(3)
-                                    ->schema([
-                                        TextEntry::make('total_work')
-                                            ->label('Travail Total Cumulé')
-                                            // Utilisation de l'appel sans paramètre de mois pour le total
-                                            ->state(fn (User $record) => $statsService->getStatsForUser($record)['total_work'].' h')
-                                            ->badge()->color('gray'),
+                                TextEntry::make('month_work')
+                                    ->label('Travail Effectif')
+                                    ->state(fn (User $record) => app(UserStatsService::class)->getStatsForUser($record, now())['month_work'] . ' h')
+                                    ->badge()
+                                    ->color('success'),
 
-                                        TextEntry::make('total_extra')
-                                            ->label('Total HS (25%) cumulées')
-                                            ->state(fn (User $record) => $statsService->getStatsForUser($record)['total_extra_25'].' h')
-                                            ->badge()->color('gray'),
+                                TextEntry::make('month_hs')
+                                    ->label('HS (Total Majoré)')
+                                    ->state(fn (User $record) => (app(UserStatsService::class)->getStatsForUser($record, now())['month_extra_25'] + app(UserStatsService::class)->getStatsForUser($record, now())['month_extra_50']) . ' h')
+                                    ->badge()
+                                    ->color('warning'),
 
-                                        TextEntry::make('contract_base')
-                                            ->label('Base Contrat')
-                                            ->state(fn (User $record) => $record->weekly_contract_hours.' h / semaine')
-                                            ->icon('heroicon-m-document-text'),
-                                    ]),
-                            ]),
+                                TextEntry::make('month_travel')
+                                    ->label('Heures Trajet')
+                                    ->state(fn (User $record) => app(UserStatsService::class)->getStatsForUser($record, now())['month_travel'] . ' h')
+                                    ->badge()
+                                    ->color('info'),
 
-                        Section::make('Solde des Congés & Repos')
-                            ->description(fn (User $record) => 'Calculé depuis le '.($record->hired_at?->format('d/m/Y') ?? "sa date d'inscription"))
-                            ->icon('heroicon-m-calendar-days')
-                            ->schema([
-                                Grid::make(3)
-                                    ->schema([
-                                        TextEntry::make('cp_balance')
-                                            ->label('Solde Congés Payés')
-                                            ->state(fn (User $record) => $statsService->getStatsForUser($record)['cp_balance'].' j')
-                                            ->color('success')
-                                            ->weight('bold')
-                                            ->size('lg'),
+                                TextEntry::make('month_gd')
+                                    ->label('Grands Dépl.')
+                                    ->state(fn (User $record) => app(UserStatsService::class)->getStatsForUser($record, now())['month_gd_count'] . ' j')
+                                    ->badge()
+                                    ->color('danger')
+                                    ->hint('Distance > 50km'),
 
-                                        TextEntry::make('cp_taken')
-                                            ->label('Congés déjà pris')
-                                            ->state(fn (User $record) => $statsService->getStatsForUser($record)['cp_taken'].' j')
-                                            ->color('gray'),
-
-                                        TextEntry::make('cp_acquired')
-                                            ->label('Total acquis (estimé)')
-                                            ->state(fn (User $record) => $statsService->getStatsForUser($record)['cp_acquired'].' j')
-                                            ->hint('Base 2.5j / mois'),
-                                    ]),
+                                TextEntry::make('gd_ratio')
+                                    ->label('% Activité GD')
+                                    ->state(fn (User $record) => round((app(UserStatsService::class)->getStatsForUser($record, now())['month_gd_count'] / max(1, app(UserStatsService::class)->getStatsForUser($record, now())['month_work'] / 7)) * 100) . ' %')
+                                    ->color('gray'),
                             ]),
                     ]),
 
-                Section::make('Informations')
-                    ->columnSpanFull()
+                Section::make('Informations Salarié')
+                    ->icon(Phosphor::IdentificationCard)
+                    ->compact()
                     ->schema([
                         Grid::make(3)
                             ->schema([
                                 TextEntry::make('name')
-                                    ->label('Identité')
-                                    ->icon(Phosphor::UserCircle)
-                                    ->color('primary'),
+                                    ->label('Salarié')
+                                    ->icon(Phosphor::UserCircle),
 
                                 TextEntry::make('email')
-                                    ->label('Email')
-                                    ->color('primary')
-                                    ->icon(Phosphor::Envelope)
-                                    ->url(fn (User $user) => 'mailto:'.$user->email),
+                                    ->label('Contact')
+                                    ->icon(Phosphor::Envelope),
 
-                                TextEntry::make('created_at')
-                                    ->label('Inscrit le')
+                                TextEntry::make('hired_at')
+                                    ->label('Date d\'embauche')
                                     ->date('d/m/Y')
                                     ->icon(Phosphor::Calendar)
-                                    ->color('primary'),
+                                    ->placeholder('Non renseignée'),
                             ]),
                     ]),
             ]);
