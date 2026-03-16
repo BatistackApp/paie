@@ -19,40 +19,59 @@ class UserInfolist
         return $schema
             ->components([
                 Section::make('Informations de bord')
+                    ->description(fn () => 'Analyse basée sur un contrat de '.auth()->user()->weekly_contract_hours.'h/semaine')
+                    ->columnSpanFull()
+                    ->schema([
+                        Grid::make(5)
+                            ->schema([
+                                TextEntry::make('work_h')
+                                    ->label('Travail Effectif')
+                                    ->state(fn (User $record) => $statsService->getStatsForUser($record, now())['work_hours'] . ' h')
+                                    ->badge()->color('success'),
+
+                                TextEntry::make('extra_25')
+                                    ->label('Heures Supp. 25%')
+                                    ->state(fn (User $record) => $statsService->getStatsForUser($record, now())['extra_25'] . ' h')
+                                    ->badge()->color('warning'),
+
+                                TextEntry::make('extra_50')
+                                    ->label('Heures Supp. 50%')
+                                    ->state(fn (User $record) => $statsService->getStatsForUser($record, now())['extra_50'] . ' h')
+                                    ->badge()->color('danger'),
+
+                                TextEntry::make('travel_h')
+                                    ->label('Trajets (Taux Normal)')
+                                    ->state(fn (User $record) => $statsService->getStatsForUser($record, now())['travel_hours'] . ' h')
+                                    ->badge()->color('info'),
+
+                                TextEntry::make('gd_days')
+                                    ->label('Grands Déplacements')
+                                    ->state(fn (User $record) => $statsService->getStatsForUser($record, now())['gd_count'])
+                                    ->badge()->color('gray'),
+                            ]),
+                    ]),
+
+                Section::make('Cumuls & Historique')
+                    ->collapsed()
                     ->columnSpanFull()
                     ->schema([
                         Grid::make(3)
                             ->schema([
-                                TextEntry::make('month_work')
-                                    ->label('Travail (Mois en cours): '.now()->monthName)
-                                    ->state(fn (User $record) => $statsService->getStatsForUser($record)['month_work_hours'].' h')
-                                    ->badge()->color('success'),
-
-                                TextEntry::make('month_travel')
-                                    ->label('Trajet (Mois en cours): '.now()->monthName)
-                                    ->state(fn (User $record) => $statsService->getStatsForUser($record)['month_travel_hours'].' h')
-                                    ->badge()->color('info'),
-
-                                TextEntry::make('month_grand_deplacement')
-                                    ->label('Grand deplacement (Mois): '.now()->monthName)
-                                    ->state(fn (User $record) => $statsService->getStatsForUser($record)['month_grand_deplacement_count'])
-                                    ->badge()->color('danger'),
-
-                                // --- LIGNE 2 : CUMULS ---
                                 TextEntry::make('total_work')
-                                    ->label('Travail (Cumul total)')
-                                    ->state(fn (User $record) => $statsService->getStatsForUser($record)['total_work_hours'].' h')
+                                    ->label('Travail Total Cumulé')
+                                    // Utilisation de l'appel sans paramètre de mois pour le total
+                                    ->state(fn (User $record) => $statsService->getStatsForUser($record)['total_work'] . ' h')
                                     ->badge()->color('gray'),
 
-                                TextEntry::make('total_travel')
-                                    ->label('Trajets (Cumul total)')
-                                    ->state(fn (User $record) => $statsService->getStatsForUser($record)['total_travel_hours'].' h')
+                                TextEntry::make('total_extra')
+                                    ->label('Total HS (25%) cumulées')
+                                    ->state(fn (User $record) => $statsService->getStatsForUser($record)['total_extra_25'] . ' h')
                                     ->badge()->color('gray'),
 
-                                TextEntry::make('total_grand_deplacement')
-                                    ->label('Grand deplacement (Cumul total)')
-                                    ->state(fn (User $record) => $statsService->getStatsForUser($record)['total_grand_deplacement_count'])
-                                    ->badge()->color('gray'),
+                                TextEntry::make('contract_base')
+                                    ->label('Base Contrat')
+                                    ->state(fn (User $record) => $record->weekly_contract_hours . ' h / semaine')
+                                    ->icon('heroicon-m-document-text'),
                             ]),
                     ]),
 

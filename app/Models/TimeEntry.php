@@ -50,6 +50,8 @@ class TimeEntry extends Model
             'has_meal' => 'boolean',
             'has_night' => 'boolean',
             'validated_at' => 'datetime',
+            'work_duration' => 'decimal:2',
+            'travel_duration' => 'decimal:2',
         ];
     }
 

@@ -33,7 +33,14 @@ class UserForm
                             ->default(Str::random(10))
                             ->dehydrated(fn ($state) => filled($state))
                             ->required(fn (string $context) => $context === 'create'),
-                    ]),
+
+                        TextInput::make('weekly_contract_hours')
+                            ->label('Heures contractuelles / semaine')
+                            ->numeric()
+                            ->default(35.00)
+                            ->suffix('h')
+                            ->helperText('Utilisé pour le calcul automatique des heures supplémentaires (25% et 50%).'),
+                    ])->columns(2),
             ]);
     }
 }

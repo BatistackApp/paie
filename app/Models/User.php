@@ -30,6 +30,7 @@ class User extends Authenticatable
         'password',
         'is_salarie',
         'email_verified_at',
+        'weekly_contract_hours',
     ];
 
     /**

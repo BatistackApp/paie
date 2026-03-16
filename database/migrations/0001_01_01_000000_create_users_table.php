@@ -18,6 +18,7 @@ return new class extends Migration
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
             $table->boolean('is_salarie')->default(false);
+            $table->decimal('weekly_contract_hours', 5, 2)->default(35.00);
             $table->rememberToken();
             $table->timestamps();
         });

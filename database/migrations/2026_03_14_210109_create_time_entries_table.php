@@ -23,6 +23,8 @@ return new class extends Migration {
             $table->boolean('has_night')->default(false);
             $table->boolean('is_validated')->default(false);
             $table->dateTime('validated_at')->nullable();
+            $table->decimal('work_duration', 8, 2)->default(0)->index();
+            $table->decimal('travel_duration', 8, 2)->default(0);
             $table->timestamps();
         });
     }
