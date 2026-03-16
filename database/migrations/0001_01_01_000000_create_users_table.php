@@ -19,6 +19,7 @@ return new class extends Migration
             $table->string('password');
             $table->boolean('is_salarie')->default(false);
             $table->decimal('weekly_contract_hours', 5, 2)->default(35.00);
+            $table->date('hired_at')->nullable();
             $table->rememberToken();
             $table->timestamps();
         });

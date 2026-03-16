@@ -57,27 +57,55 @@ class UserInfolist
                             ]),
                     ]),
 
-                Section::make('Cumuls & Historique')
-                    ->collapsed()
+                Grid::make(2)
                     ->columnSpanFull()
                     ->schema([
-                        Grid::make(3)
+                        Section::make('Cumuls & Historique')
+                            ->collapsed()
                             ->schema([
-                                TextEntry::make('total_work')
-                                    ->label('Travail Total Cumulé')
-                                    // Utilisation de l'appel sans paramètre de mois pour le total
-                                    ->state(fn (User $record) => $statsService->getStatsForUser($record)['total_work'].' h')
-                                    ->badge()->color('gray'),
+                                Grid::make(3)
+                                    ->schema([
+                                        TextEntry::make('total_work')
+                                            ->label('Travail Total Cumulé')
+                                            // Utilisation de l'appel sans paramètre de mois pour le total
+                                            ->state(fn (User $record) => $statsService->getStatsForUser($record)['total_work'].' h')
+                                            ->badge()->color('gray'),
 
-                                TextEntry::make('total_extra')
-                                    ->label('Total HS (25%) cumulées')
-                                    ->state(fn (User $record) => $statsService->getStatsForUser($record)['total_extra_25'].' h')
-                                    ->badge()->color('gray'),
+                                        TextEntry::make('total_extra')
+                                            ->label('Total HS (25%) cumulées')
+                                            ->state(fn (User $record) => $statsService->getStatsForUser($record)['total_extra_25'].' h')
+                                            ->badge()->color('gray'),
 
-                                TextEntry::make('contract_base')
-                                    ->label('Base Contrat')
-                                    ->state(fn (User $record) => $record->weekly_contract_hours.' h / semaine')
-                                    ->icon('heroicon-m-document-text'),
+                                        TextEntry::make('contract_base')
+                                            ->label('Base Contrat')
+                                            ->state(fn (User $record) => $record->weekly_contract_hours.' h / semaine')
+                                            ->icon('heroicon-m-document-text'),
+                                    ]),
+                            ]),
+
+                        Section::make('Solde des Congés & Repos')
+                            ->description(fn (User $record) => 'Calculé depuis le '.($record->hired_at?->format('d/m/Y') ?? "sa date d'inscription"))
+                            ->icon('heroicon-m-calendar-days')
+                            ->schema([
+                                Grid::make(3)
+                                    ->schema([
+                                        TextEntry::make('cp_balance')
+                                            ->label('Solde Congés Payés')
+                                            ->state(fn (User $record) => $statsService->getStatsForUser($record)['cp_balance'].' j')
+                                            ->color('success')
+                                            ->weight('bold')
+                                            ->size('lg'),
+
+                                        TextEntry::make('cp_taken')
+                                            ->label('Congés déjà pris')
+                                            ->state(fn (User $record) => $statsService->getStatsForUser($record)['cp_taken'].' j')
+                                            ->color('gray'),
+
+                                        TextEntry::make('cp_acquired')
+                                            ->label('Total acquis (estimé)')
+                                            ->state(fn (User $record) => $statsService->getStatsForUser($record)['cp_acquired'].' j')
+                                            ->hint('Base 2.5j / mois'),
+                                    ]),
                             ]),
                     ]),
 

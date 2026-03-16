@@ -33,15 +33,33 @@ class UserStatsService
             ->select(['id', 'user_id', 'chantier_id', 'entry_date', 'work_duration', 'travel_duration'])
             ->with('chantier:id,distance_km')
             ->get();
+        $allAbsences = $user->absences()
+            ->where('is_validated', true)
+            ->get();
 
         $now = now();
         $targetMonth = $month ?? $now;
         $contract = (float) $user->weekly_contract_hours;
         $hoursPerDay = $contract / 5; // Estimation du volume horaire d'une journée d'absence
 
-        // --- Stats du mois ---
-        $monthEntries = $allEntries->filter(fn ($e) => $e->entry_date->month === $targetMonth->month &&
-            $e->entry_date->year === $targetMonth->year
+        // --- LOGIQUE CONGÉS PAYÉS (CP) ---
+        // On utilise hired_at, sinon created_at par défaut
+        $referenceDate = $user->hired_at ?? $user->created_at;
+
+        // Calcul du nombre de mois entiers depuis l'embauche
+        $monthsWorked = $referenceDate->diffInMonths($now);
+
+        // Dans le BTP, on acquiert souvent 2.5 jours par mois de travail effectif
+        $cpAcquired = round($monthsWorked * 2.5, 2);
+
+        // Calcul du consommé (Absences de type CP validées)
+        $cpTaken = $allAbsences->where('absence_type', AbsenceType::CONGE_PAYE)
+            ->sum(fn($a) => $this->absenceService->calculateAbsenceDays($a));
+
+        $cpBalance = $cpAcquired - $cpTaken;
+
+        $monthEntries = $allEntries->filter(fn($e) =>
+            $e->entry_date->month === $targetMonth->month && $e->entry_date->year === $targetMonth->year
         );
 
         // --- Gestion du Repos Compensateur (RC) ---
@@ -98,6 +116,10 @@ class UserStatsService
             'extra_50' => round($netExtra50, 2),
             'total_work' => round($totalWork, 2),
             'total_extra_25' => round($totalExtra25, 2),
+            'cp_acquired' => $cpAcquired,
+            'cp_taken' => $cpTaken,
+            'cp_balance' => $cpBalance,
+            'hired_at' => $user->hired_at ? $user->hired_at->format('d/m/Y') : 'Non renseignée',
         ];
 
         return $this->cache[$cacheKey] = $result;

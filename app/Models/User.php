@@ -31,6 +31,7 @@ class User extends Authenticatable
         'is_salarie',
         'email_verified_at',
         'weekly_contract_hours',
+        'hired_at',
     ];
 
     /**
