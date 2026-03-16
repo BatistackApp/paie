@@ -7,6 +7,7 @@ use App\Enums\AdvanceType;
 use App\Filament\Resources\Users\UserResource;
 use App\Models\Chantier;
 use App\Models\User;
+use App\Service\PdfService;
 use Filafly\Icons\Phosphor\Enums\Phosphor;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
@@ -23,6 +24,7 @@ use Filament\Resources\Pages\ViewRecord;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
 use Filament\Support\Enums\Width;
+use Illuminate\Support\Carbon;
 
 class ViewUser extends ViewRecord
 {
@@ -45,6 +47,52 @@ class ViewUser extends ViewRecord
                 ->requiresConfirmation()
                 ->modalHeading('Supprimer le salarié')
                 ->modalIcon(Phosphor::Trash),
+
+            Action::make('print')
+                ->label('Imprimer le relever')
+                ->icon(Phosphor::Printer)
+                ->color('gray')
+                ->schema([
+                    DatePicker::make('until')
+                        ->label('Du')
+                        ->required(),
+
+                    DatePicker::make('from')
+                        ->label('Au')
+                        ->required(),
+                ])
+                ->action(function (User $record, array $data) {
+
+                    $from = Carbon::createFromTimestamp(strtotime($data['until']));
+                    $to = Carbon::createFromTimestamp(strtotime($data['from']));
+
+                    $times_entries = $record->timeEntries()
+                        ->whereBetween('entry_date', [$from, $to])
+                        ->get();
+                    $absences = $record->absences()
+                        ->whereBetween('start_date', [$from, $to])
+                        ->whereBetween('end_date', [$from, $to])
+                        ->get();
+
+                    $advances = $record->advances()
+                        ->whereBetween('date', [$from, $to])
+                        ->get();
+
+                    $pdfContent = app(PdfService::class)->generateFromView('pdf.relever_salarie', [
+                        'entries' => $times_entries,
+                        'absences' => $absences,
+                        'advances' => $advances,
+                        'title' => 'Relever d\'heure du salarié',
+                        'user' => $record,
+                        'startDate' => $data['until'],
+                        'endDate' => $data['from'],
+                    ]);
+
+                    return response()->streamDownload(
+                        fn () => print ($pdfContent),
+                        'releve_heures_'.now()->format('Y-m-d').'.pdf'
+                    );
+                }),
 
             ActionGroup::make([
                 Action::make('create_absence')

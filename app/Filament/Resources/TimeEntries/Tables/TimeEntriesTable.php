@@ -80,7 +80,7 @@ class TimeEntriesTable
                     ->color(fn ($state) => $state === 'Grand Déplacement' ? 'danger' : 'gray'),
             ])
             ->filters([
-                SelectFilter::make('user')
+                SelectFilter::make('user_id')
                     ->options(fn () => User::where('is_salarie', true)->pluck('name', 'id'))
                     ->label('Salarié'),
 
