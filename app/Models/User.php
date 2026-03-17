@@ -5,6 +5,7 @@ namespace App\Models;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Observers\UserObserver;
 use Database\Factories\UserFactory;
+use Filament\Panel;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -87,5 +88,10 @@ class User extends Authenticatable
     public function advances(): HasMany
     {
         return $this->hasMany(Advance::class);
+    }
+
+    public function canAccessPanel(Panel $panel): bool
+    {
+        return str_ends_with($this->email, '@admin.com');
     }
 }
