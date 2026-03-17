@@ -1,6 +1,6 @@
 {
     "name": "Batistack Paie & Planning",
-    "short_name": "Batistack",
+    "short_name": "C2ME Paie",
     "description": "Logiciel de gestion des heures, déplacements et absences pour le BTP.",
     "start_url": "/admin",
     "display": "standalone",
