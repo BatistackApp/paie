@@ -1,0 +1,24 @@
+{
+    "name": "Batistack Paie & Planning",
+    "short_name": "Batistack",
+    "description": "Logiciel de gestion des heures, déplacements et absences pour le BTP.",
+    "start_url": "/admin",
+    "display": "standalone",
+    "orientation": "portrait",
+    "background_color": "#ffffff",
+    "theme_color": "#1d4ed8",
+    "icons": [
+        {
+            "src": "/favicon.svg",
+            "sizes": "any",
+            "type": "image/svg+xml",
+            "purpose": "any"
+        },
+        {
+            "src": "/apple-touch-icon.png",
+            "sizes": "180x180",
+            "type": "image/png",
+            "purpose": "maskable"
+        }
+    ]
+}

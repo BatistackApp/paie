@@ -5,6 +5,7 @@ namespace App\Models;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Observers\UserObserver;
 use Database\Factories\UserFactory;
+use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -15,7 +16,7 @@ use Illuminate\Support\Str;
 use Laravel\Fortify\TwoFactorAuthenticatable;
 
 #[ObservedBy([UserObserver::class])]
-class User extends Authenticatable
+class User extends Authenticatable implements FilamentUser
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable, TwoFactorAuthenticatable;
