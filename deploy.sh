@@ -40,6 +40,8 @@ $PHP_BIN artisan view:cache
 $PHP_BIN artisan config:cache
 $PHP_BIN artisan route:cache
 
+/www/server/panel/pyenv/bin/supervisorctl restart paie_worker:paie_worker_00
+
 # 7. Relancer l'application
 $PHP_BIN artisan up
 
