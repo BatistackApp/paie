@@ -1,4 +1,4 @@
-const CACHE_NAME = 'batistack-v1';
+const CACHE_NAME = 'paie-v1-0-0';
 const ASSETS_TO_CACHE = [
     '/',
     '/css/filament/filament/app.css',
